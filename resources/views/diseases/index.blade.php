@@ -1,0 +1,155 @@
+@extends('layouts.app')
+
+@section('title', __('messages.diseases'))
+
+@section('content')
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="ti ti-virus me-2"></i>
+                    {{ __('messages.diseases') }}
+                </h5>
+                <a href="{{ route('diseases.create') }}" class="btn btn-primary" style="background-color: #1e6f6a; border-color: #1e6f6a;">
+                    <i class="ti ti-plus me-1"></i>
+                    {{ __('messages.add_disease') }}
+                </a>
+            </div>
+            <div class="card-body">
+                @include('layouts.messages')
+
+                {{-- Filters --}}
+                <form method="GET" action="{{ route('diseases.index') }}" class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="ti ti-search"></i></span>
+                            <input type="text" name="search" class="form-control" placeholder="{{ __('messages.search') }}" value="{{ request('search') }}">
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <select name="status" class="form-select">
+                            <option value="">{{ __('messages.all_status') }}</option>
+                            <option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>{{ __('messages.active') }}</option>
+                            <option value="inactive" {{ request('status') == 'inactive' ? 'selected' : '' }}>{{ __('messages.inactive') }}</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-secondary me-2">
+                            <i class="ti ti-filter me-1"></i>
+                            {{ __('messages.filter') }}
+                        </button>
+                        <a href="{{ route('diseases.index') }}" class="btn btn-outline-secondary">
+                            <i class="ti ti-refresh me-1"></i>
+                            {{ __('messages.reset') }}
+                        </a>
+                    </div>
+                </form>
+
+                {{-- Table --}}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>{{ __('messages.name_en') }}</th>
+                                <th>{{ __('messages.name_ar') }}</th>
+                                <th>{{ __('messages.symptoms') }}</th>
+                                <th>{{ __('messages.status') }}</th>
+                                <th>{{ __('messages.created_at') }}</th>
+                                <th class="text-center">{{ __('messages.actions') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($diseases as $disease)
+                                <tr>
+                                    <td>{{ $loop->iteration + ($diseases->currentPage() - 1) * $diseases->perPage() }}</td>
+                                    <td>
+                                        <a href="{{ route('diseases.show', $disease) }}" class="text-decoration-none" style="color: #1e6f6a; font-weight: 500;">
+                                            {{ $disease->name_en }}
+                                        </a>
+                                    </td>
+                                    <td>{{ $disease->name_ar }}</td>
+                                    <td>
+                                        @php
+                                            $clinicalCount = $disease->symptoms->where('category', 'clinical_signs')->count();
+                                            $pmCount = $disease->symptoms->where('category', 'pm_lesions')->count();
+                                            $labCount = $disease->symptoms->where('category', 'lab_findings')->count();
+                                        @endphp
+                                        <div class="d-flex flex-wrap gap-1">
+                                            @if($clinicalCount > 0)
+                                                <span class="badge bg-primary" title="{{ __('messages.clinical_signs') }}">
+                                                    <i class="ti ti-stethoscope"></i> {{ $clinicalCount }}
+                                                </span>
+                                            @endif
+                                            @if($pmCount > 0)
+                                                <span class="badge bg-warning text-dark" title="{{ __('messages.pm_lesions') }}">
+                                                    <i class="ti ti-microscope"></i> {{ $pmCount }}
+                                                </span>
+                                            @endif
+                                            @if($labCount > 0)
+                                                <span class="badge bg-info" title="{{ __('messages.lab_findings') }}">
+                                                    <i class="ti ti-flask"></i> {{ $labCount }}
+                                                </span>
+                                            @endif
+                                            @if($clinicalCount == 0 && $pmCount == 0 && $labCount == 0)
+                                                <span class="text-muted">-</span>
+                                            @endif
+                                        </div>
+                                    </td>
+                                    <td>
+                                        @if($disease->is_active)
+                                            <span class="badge bg-success">{{ __('messages.active') }}</span>
+                                        @else
+                                            <span class="badge bg-danger">{{ __('messages.inactive') }}</span>
+                                        @endif
+                                    </td>
+                                    <td>{{ $disease->created_at->format('Y-m-d') }}</td>
+                                    <td class="text-center">
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ route('diseases.show', $disease) }}" class="btn btn-sm btn-outline-info" title="{{ __('messages.view') }}">
+                                                <i class="ti ti-eye"></i>
+                                            </a>
+                                            <a href="{{ route('diseases.edit', $disease) }}" class="btn btn-sm btn-outline-primary" title="{{ __('messages.edit') }}">
+                                                <i class="ti ti-edit"></i>
+                                            </a>
+                                            <form action="{{ route('diseases.toggle-status', $disease) }}" method="POST" class="d-inline">
+                                                @csrf
+                                                @method('PATCH')
+                                                <button type="submit" class="btn btn-sm btn-outline-{{ $disease->is_active ? 'warning' : 'success' }}" title="{{ $disease->is_active ? __('messages.deactivate') : __('messages.activate') }}">
+                                                    <i class="ti ti-{{ $disease->is_active ? 'toggle-right' : 'toggle-left' }}"></i>
+                                                </button>
+                                            </form>
+                                            <form action="{{ route('diseases.destroy', $disease) }}" method="POST" class="d-inline" onsubmit="return confirm('{{ __('messages.confirm_delete') }}')">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="{{ __('messages.delete') }}">
+                                                    <i class="ti ti-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="7" class="text-center py-4">
+                                        <div class="text-muted">
+                                            <i class="ti ti-virus-off fs-1 d-block mb-2"></i>
+                                            {{ __('messages.no_diseases') }}
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                {{-- Pagination --}}
+                <div class="d-flex justify-content-center mt-4">
+                    {{ $diseases->withQueryString()->links() }}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@endsection
